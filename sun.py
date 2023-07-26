@@ -8,13 +8,25 @@ Created on Fri Jul 14 09:15:01 2023
 import requests
 import pandas as pd
 import csv
+import redshift_connector
+import datetime
+
+conn = redshift_connector.connect(
+     host='data-engineer-cluster.cyhh5bfevlmn.us-east-1.redshift.amazonaws.com',
+     database='data-engineer-database',
+     port=5439,
+     user='jl_gonzalezaguila_coderhouse',
+     password='9t7ZiTxQb9'
+  )
+
 
 stream_status = False
-df_wind = pd.DataFrame(columns=['id_cuidad',
-                                    'date',
+df_sun = pd.DataFrame(columns=['id_cuidad',
+                                    'fecha',
                                     'in',
                                     'mid',
                                     'out',
+                                    'fecha_carga',
                                     ])
 arrayAllLeads = []
 stream_status = False
@@ -50,14 +62,29 @@ while inicio <= final:
                             out_sun = sun['out']
                             row = {
                                 'id_cuidad' : id_cuidad,
-                                'date' : date,
+                                'fecha' : date,
                                 'in' : in_sun,
                                 'mid' : mid_sun,
                                 'out' : out_sun,
+                                'fecha_carga' : datetime.datetime.now(),
                                 }
-                            df_wind = df_wind.append(row, ignore_index=True)
+                            df_sun = df_sun.append(row, ignore_index=True)
                             n = n+1
                     except:
                             n = n+1      
         inicio = inicio+1
-df_wind.to_csv('C:/Users/jlgon/OneDrive/Escritorio/CoderHouse/sun.csv', index=False, encoding='utf-8')
+
+def write_dataframe_to_redshift(df, table_name, conn):
+    cursor = conn.cursor()
+
+    for index, row in df.iterrows():
+        insert_query = f"""
+            INSERT INTO {table_name} (id_cuidad, fecha ,in_sun ,mid_sun ,out_sun , fecha_carga)
+            VALUES ({row['id_cuidad']}, {row['fecha']}, '{row['in']}', '{row['mid']}', '{row['out']}', '{row['fecha_carga']}');
+        """
+        cursor.execute(insert_query)
+
+    conn.commit()
+    cursor.close()
+
+write_dataframe_to_redshift(df_sun, 'jl_gonzalezaguila_coderhouse.cuidad_sun', conn) 

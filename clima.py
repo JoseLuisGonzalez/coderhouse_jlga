@@ -22,9 +22,9 @@ conn = redshift_connector.connect(
 stream_status = False
 df_clima = pd.DataFrame(columns=['id_cuidad','status',
                                              'location',
-                                             'date',
-                                             'name',
-                                             'month',
+                                             'fecha',
+                                             'dia_semana',
+                                             'mes',
                                              'symbol_value',
                                              'symbol_description',
                                              'symbol_value2',
@@ -87,9 +87,9 @@ while inicio <= final:
                                 'id_cuidad' : id_cuidad,
                                 'status' : status,
                                 'location' : location.replace('[Región Metropolitana de Santiago;Chile]','').replace('[Región de Valparaíso;Chile]',''),
-                                'date' : date,
-                                'name' : name,
-                                'month' : month,
+                                'fecha' : date,
+                                'dia_semana' : name,
+                                'mes' : month,
                                 'symbol_value' : symbol_value,
                                 'symbol_description' : symbol_description,
                                 'symbol_value2' : symbol_value2,
@@ -111,14 +111,13 @@ while inicio <= final:
                             n = n+1      
         inicio = inicio+1
         
-#df_clima.to_csv('C:/Users/jlgon/OneDrive/Escritorio/CoderHouse/clima.csv', index=False, encoding='utf-8')
 def write_dataframe_to_redshift(df, table_name, conn):
     cursor = conn.cursor()
 
     for index, row in df.iterrows():
         insert_query = f"""
-            INSERT INTO {table_name} (id_cuidad, status ,location ,fecha ,dia_semana ,mes ,symbol_value, symbol_description,symbol_value2, symbol_description2,tempmin,tempmax,rain,humidity)
-            VALUES ({row['id_cuidad']}, '{row['date']}', '{row['in']}', '{row['out']}', {row['lumi']}, '{row['desc']}', '{row['symbol']}', '{row['fecha_carga']}');
+            INSERT INTO {table_name} (id_cuidad, status ,location ,fecha ,dia_semana ,mes, symbol_value,symbol_description, symbol_value2,symbol_description2,tempmin,tempmax,rain,humidity,pressure,snowline,uv_index_max,local_time,local_time_offset,fecha_carga)
+            VALUES ({row['id_cuidad']}, {row['status']}, '{row['location']}', {row['fecha']}, '{row['dia_semana']}', '{row['mes']}', '{row['symbol_value']}', '{row['symbol_description']}', '{row['symbol_value2']}', '{row['symbol_description2']}', {row['tempmin']}, {row['tempmax']}, {row['rain']}, {row['humidity']}, {row['pressure']}, {row['snowline']}, {row['uv_index_max']}, '{row['local_time']}', {row['local_time_offset']}, '{row['fecha_carga']}');
         """
         cursor.execute(insert_query)
 

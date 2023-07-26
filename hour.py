@@ -101,4 +101,3 @@ while inicio <= final:
                     except:
                             n = n+1      
         inicio = inicio+1
-df_wind.to_csv('C:/Users/jlgon/OneDrive/Escritorio/CoderHouse/hour.csv', index=False, encoding='utf-8')
