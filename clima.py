@@ -8,16 +8,12 @@ Created on Wed Jul 12 16:28:52 2023
 import requests
 import pandas as pd
 import csv
-import redshift_connector
+#import redshift_connector
 import datetime
+from conector import connector
 
-conn = redshift_connector.connect(
-     host='data-engineer-cluster.cyhh5bfevlmn.us-east-1.redshift.amazonaws.com',
-     database='data-engineer-database',
-     port=5439,
-     user='jl_gonzalezaguila_coderhouse',
-     password='9t7ZiTxQb9'
-  )
+
+conn = connector()
 
 stream_status = False
 df_clima = pd.DataFrame(columns=['id_cuidad','status',
@@ -43,73 +39,76 @@ df_clima = pd.DataFrame(columns=['id_cuidad','status',
 arrayAllLeads = []
 stream_status = False
 
-inicio = 1
-final = 409
-while inicio <= final:
-    with open('id_url.csv', newline='') as archivo_csv:
-        lector_csv = csv.reader(archivo_csv, delimiter=';', quotechar='"')
-        for fila in lector_csv:
-            correlativo = str(fila[0])
-            if str(fila[0]) == str(inicio):
-        
-                url_archivo = fila[1]
-                usuario = '&affiliate_id=nhixuwvv8492&v=3.0'
-                url = url_archivo+usuario
-                id_cuidad = url_archivo.replace('http://api.meteored.cl/index.php?api_lang=cl&localidad=', '')
 
-                response = requests.request("GET", url_archivo+usuario)
-                
-                n = 1
-                while n <= 5:
-                    try:
-                        if response.status_code == 200:
-                            response_json = response.json()
-                            status = response_json['status']
-                            location = response_json['location']
-                            texto = response_json['day'][str(n)]
-                            date = texto['date']
-                            name = texto['name']
-                            month = texto['month']
-                            symbol_value = texto['symbol_value']
-                            symbol_description = texto['symbol_description']
-                            symbol_value2 = texto['symbol_value2']
-                            symbol_description2 = texto['symbol_description2']
-                            tempmin = texto['tempmin']
-                            tempmax = texto['tempmax']
-                            rain = texto['rain']
-                            humidity = texto['humidity']
-                            pressure = texto['pressure']
-                            snowline = texto['snowline']
-                            uv_index_max = texto['uv_index_max']
-                            local_time = texto['local_time']
-                            local_time_offset = texto['local_time_offset']
-                            row = {
-                                'id_cuidad' : id_cuidad,
-                                'status' : status,
-                                'location' : location.replace('[Región Metropolitana de Santiago;Chile]','').replace('[Región de Valparaíso;Chile]',''),
-                                'fecha' : date,
-                                'dia_semana' : name,
-                                'mes' : month,
-                                'symbol_value' : symbol_value,
-                                'symbol_description' : symbol_description,
-                                'symbol_value2' : symbol_value2,
-                                'symbol_description2' : symbol_description2,
-                                'tempmin' : tempmin,
-                                'tempmax' : tempmax,
-                                'rain' : rain,
-                                'humidity' : humidity,
-                                'pressure' : pressure,
-                                'snowline' : snowline,
-                                'uv_index_max' : uv_index_max,
-                                'local_time' : local_time,
-                                'local_time_offset' : local_time_offset,
-                                'fecha_carga' : datetime.datetime.now(),
-                                }
-                            df_clima = df_clima.append(row, ignore_index=True)
-                            n = n+1
-                    except:
-                            n = n+1      
-        inicio = inicio+1
+cursor = conn.cursor()
+cursor.execute("select id,url from jl_gonzalezaguila_coderhouse.cuidad_url")
+result: pd.DataFrame = cursor.fetch_dataframe()
+total_registros = len(result.index)
+cursor.close()
+
+inicio = 1
+final = total_registros
+while inicio <= final:
+    url = result.loc[result['id'] == inicio]
+    url_archivo = url['url'].to_string(index=False)
+
+    usuario = '&affiliate_id=nhixuwvv8492&v=3.0'
+    url = url_archivo+usuario
+    id_cuidad = url_archivo.replace('http://api.meteored.cl/index.php?api_lang=cl&localidad=', '')
+
+    response = requests.request("GET", url_archivo+usuario)
+    
+    n = 1
+    while n <= 5:
+        try:
+            if response.status_code == 200:
+                response_json = response.json()
+                status = response_json['status']
+                location = response_json['location']
+                texto = response_json['day'][str(n)]
+                date = texto['date']
+                name = texto['name']
+                month = texto['month']
+                symbol_value = texto['symbol_value']
+                symbol_description = texto['symbol_description']
+                symbol_value2 = texto['symbol_value2']
+                symbol_description2 = texto['symbol_description2']
+                tempmin = texto['tempmin']
+                tempmax = texto['tempmax']
+                rain = texto['rain']
+                humidity = texto['humidity']
+                pressure = texto['pressure']
+                snowline = texto['snowline']
+                uv_index_max = texto['uv_index_max']
+                local_time = texto['local_time']
+                local_time_offset = texto['local_time_offset']
+                row = {
+                    'id_cuidad' : id_cuidad,
+                    'status' : status,
+                    'location' : location.replace('[Región Metropolitana de Santiago;Chile]','').replace('[Región de Valparaíso;Chile]',''),
+                    'fecha' : date,
+                    'dia_semana' : name,
+                    'mes' : month,
+                    'symbol_value' : symbol_value,
+                    'symbol_description' : symbol_description,
+                    'symbol_value2' : symbol_value2,
+                    'symbol_description2' : symbol_description2,
+                    'tempmin' : tempmin,
+                    'tempmax' : tempmax,
+                    'rain' : rain,
+                    'humidity' : humidity,
+                    'pressure' : pressure,
+                    'snowline' : snowline,
+                    'uv_index_max' : uv_index_max,
+                    'local_time' : local_time,
+                    'local_time_offset' : local_time_offset,
+                    'fecha_carga' : datetime.datetime.now(),
+                    }
+                df_clima = df_clima.append(row, ignore_index=True)
+                n = n+1
+        except:
+                n = n+1      
+inicio = inicio+1
         
 def write_dataframe_to_redshift(df, table_name, conn):
     cursor = conn.cursor()
